@@ -84,17 +84,18 @@ class BabyBuddyClient:
         """Return the current UTC time as an ISO-8601 string."""
         return datetime.now(timezone.utc).isoformat()
 
-    def find_unfinished(self, endpoint: str, child_id: int) -> dict | None:
+    def find_unfinished(self, endpoint: str, child_id: int, tags: list[str] | None = None) -> dict | None:
         """Return the latest in-progress entry for *child_id* at *endpoint*, or None.
 
         An entry is considered in-progress when its ``start`` equals its ``end``
         (the sentinel value Baby Buddy uses for activities that haven't ended yet).
+        Optionally filter by tag slugs via *tags*.
         """
-        logger.debug("find_unfinished: endpoint=%s child_id=%d", endpoint, child_id)
-        data = self._get(
-            endpoint,
-            params={"limit": 1, "ordering": "-start", "child": child_id},
-        )
+        logger.debug("find_unfinished: endpoint=%s child_id=%d tags=%s", endpoint, child_id, tags)
+        params: dict = {"limit": 1, "ordering": "-start", "child": child_id}
+        if tags:
+            params["tags"] = ",".join(tags)
+        data = self._get(endpoint, params=params)
         results = data.get("results", [])
         if not results:
             logger.debug("find_unfinished: no entries found")
