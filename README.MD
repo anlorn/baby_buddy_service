@@ -234,16 +234,17 @@ Records a diaper change that was solid only (not wet).
 
 #### `sleep_start`
 
-Records the start of a sleep session.
+Records the start of a sleep session. If an unfinished `hass`-tagged sleep already exists for the child, does nothing and logs a warning — prevents duplicate in-progress entries from double-presses.
 
+- Pre-check: `GET /api/sleep/?limit=1&ordering=-start&child=<id>&tags=hass` — aborts if `start == end` entry found
 - Endpoint: `POST /api/sleep/`
 - Fields: `start=end=now`, `tags=["hass"]`
 
 #### `sleep_finish`
 
-Closes the most recent unfinished sleep session by setting its end time to now. If no unfinished session exists, logs a warning and returns `null` result without error.
+Closes the most recent unfinished `hass`-tagged sleep session by setting its end time to now. Sleep entries without the `hass` tag (e.g. created manually in the UI) are ignored entirely. If no matching unfinished session exists, logs a warning and returns `null` result without error.
 
-- Lookup: `GET /api/sleep/?limit=1&ordering=-start&child=<id>`
+- Lookup: `GET /api/sleep/?limit=1&ordering=-start&child=<id>&tags=hass`
 - Condition: entry is patched only if `start == end`
 - Endpoint: `PATCH /api/sleep/<id>/`
 - Fields: `end=now`
@@ -301,7 +302,7 @@ The core HTTP layer. Contains the `BabyBuddyClient` class:
 - `_post(path, data)`: POST JSON, raises on non-2xx.
 - `_patch(path, data)`: PATCH JSON, raises on non-2xx.
 - `_now()`: returns the current UTC time as an ISO-8601 string.
-- `find_unfinished(endpoint, child_id)`: fetches the latest entry for a child, returns it only if `start == end` (parsed as `datetime` objects for reliable comparison), otherwise returns `None`.
+- `find_unfinished(endpoint, child_id, tags)`: fetches the latest entry for a child (optionally filtered by tag slugs), returns it only if `start == end` (parsed as `datetime` objects for reliable comparison), otherwise returns `None`.
 
 #### `baby_buddy/feedings.py`
 
