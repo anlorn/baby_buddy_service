@@ -123,3 +123,41 @@ class BabyBuddyClient:
 
         logger.debug("find_unfinished: entry id=%s already finished", entry.get("id"))
         return None
+
+    def find_latest(
+        self,
+        endpoint: str,
+        child_id: int,
+        filters: dict | None = None,
+    ) -> dict | None:
+        """Return the most recent entry for *child_id* at *endpoint*, regardless of state.
+
+        Unlike :meth:`find_unfinished`, this does not require ``start == end`` —
+        it returns whatever entry sorts first by ``-start`` matching the optional
+        *filters* (e.g. ``{"method": "bottle"}``).
+        """
+        logger.debug("find_latest: endpoint=%s child_id=%d filters=%s", endpoint, child_id, filters)
+        params: dict = {"limit": 1, "ordering": "-start", "child": child_id}
+        if filters:
+            params.update(filters)
+        data = self._get(endpoint, params=params)
+        results = data.get("results", [])
+        if not results:
+            logger.debug("find_latest: no entries found")
+            return None
+        entry = results[0]
+        logger.debug("find_latest: entry id=%s", entry.get("id"))
+        return entry
+
+    def append_notes(self, endpoint: str, entry_id: int, text: str) -> dict:
+        """PATCH *entry_id* at *endpoint*, appending *text* to its ``notes`` field.
+
+        Separator is ``"; "``. If the existing ``notes`` is empty or ``None``,
+        the new value is just *text* (no leading separator).
+        """
+        logger.debug("append_notes: endpoint=%s id=%s text=%r", endpoint, entry_id, text)
+        existing = self._get(f"{endpoint}{entry_id}/")
+        prior = existing.get("notes") or ""
+        new_notes = f"{prior}; {text}" if prior else text
+        logger.debug("append_notes: prior=%r -> new=%r", prior, new_notes)
+        return self._patch(f"{endpoint}{entry_id}/", {"notes": new_notes})
