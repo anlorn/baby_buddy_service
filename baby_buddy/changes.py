@@ -37,3 +37,19 @@ def diaper_change_solid(client: BabyBuddyClient, child_id: int) -> dict:
             "tags": ["hass"],
         },
     )
+
+
+def diaper_change_wet(client: BabyBuddyClient, child_id: int) -> dict:
+    """Record a wet-only diaper change tagged with hass."""
+    now = client._now()
+    logger.debug("diaper_change_wet: child_id=%d time=%s", child_id, now)
+    return client._post(
+        "/api/changes/",
+        {
+            "child": child_id,
+            "time": now,
+            "wet": True,
+            "solid": False,
+            "tags": ["hass"],
+        },
+    )

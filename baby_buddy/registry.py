@@ -2,7 +2,7 @@
 
 from typing import Callable
 
-from .changes import diaper_change_solid, diaper_change_wet_solid
+from .changes import diaper_change_solid, diaper_change_wet, diaper_change_wet_solid
 from .feedings import (
     feeding_bottle_breast_milk,
     feeding_bottle_formula,
@@ -29,6 +29,7 @@ COMMANDS: dict[str, Callable] = {
     "feeding_note_vitamin_d": feeding_note_vitamin_d,
     "diaper_change_wet_solid": diaper_change_wet_solid,
     "diaper_change_solid": diaper_change_solid,
+    "diaper_change_wet": diaper_change_wet,
     "sleep_start": sleep_start,
     "sleep_finish": sleep_finish,
     "tummy_time_start": tummy_time_start,
