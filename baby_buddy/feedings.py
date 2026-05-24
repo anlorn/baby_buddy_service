@@ -108,36 +108,53 @@ def feeding_finish_last(client: BabyBuddyClient, child_id: int) -> dict | None:
     return client._patch(f"/api/feedings/{entry['id']}/", {"end": now})
 
 
-def _append_note_to_current_feeding(
-    client: BabyBuddyClient, child_id: int, text: str, label: str
+def _note_on_latest_if_compatible(
+    client: BabyBuddyClient,
+    child_id: int,
+    text: str,
+    allowed_methods: set[str],
+    label: str,
 ) -> dict | None:
-    """Append *text* to the in-progress feeding's notes; warn+return None if none."""
-    logger.debug("%s: child_id=%d", label, child_id)
-    entry = client.find_unfinished("/api/feedings/", child_id)
+    """Append *text* to the latest feeding's notes only if its method is in *allowed_methods*.
+
+    Looks at the latest feeding regardless of in-progress/finished state. If no feeding
+    exists or its method is not compatible (e.g. Vitamin D on a breast feed, Left/Right
+    on a bottle), logs a warning and returns ``None`` — never errors.
+    """
+    logger.debug("%s: child_id=%d allowed_methods=%s", label, child_id, sorted(allowed_methods))
+    entry = client.find_latest("/api/feedings/", child_id)
     if entry is None:
-        logger.warning("%s: no in-progress feeding for child_id=%d; doing nothing", label, child_id)
+        logger.warning("%s: no feeding found for child_id=%d; doing nothing", label, child_id)
+        return None
+    method = entry.get("method")
+    if method not in allowed_methods:
+        logger.warning(
+            "%s: latest feeding id=%s has method=%r, not in %s; doing nothing",
+            label, entry["id"], method, sorted(allowed_methods),
+        )
         return None
     return client.append_notes("/api/feedings/", entry["id"], text)
 
 
+_BREAST_METHODS = {"left breast", "right breast", "both breasts"}
+
+
 def feeding_note_left(client: BabyBuddyClient, child_id: int) -> dict | None:
-    """Append 'Left breast' to the in-progress feeding's notes."""
-    return _append_note_to_current_feeding(client, child_id, "Left breast", "feeding_note_left")
+    """Append 'Left breast' to the latest feeding's notes if it's a breast feed."""
+    return _note_on_latest_if_compatible(
+        client, child_id, "Left breast", _BREAST_METHODS, "feeding_note_left",
+    )
 
 
 def feeding_note_right(client: BabyBuddyClient, child_id: int) -> dict | None:
-    """Append 'Right breast' to the in-progress feeding's notes."""
-    return _append_note_to_current_feeding(client, child_id, "Right breast", "feeding_note_right")
+    """Append 'Right breast' to the latest feeding's notes if it's a breast feed."""
+    return _note_on_latest_if_compatible(
+        client, child_id, "Right breast", _BREAST_METHODS, "feeding_note_right",
+    )
 
 
 def feeding_note_vitamin_d(client: BabyBuddyClient, child_id: int) -> dict | None:
-    """Append 'Vitamin D' to the most recent bottle feeding's notes (any state)."""
-    logger.debug("feeding_note_vitamin_d: child_id=%d", child_id)
-    entry = client.find_latest("/api/feedings/", child_id, filters={"method": "bottle"})
-    if entry is None:
-        logger.warning(
-            "feeding_note_vitamin_d: no bottle feeding found for child_id=%d; doing nothing",
-            child_id,
-        )
-        return None
-    return client.append_notes("/api/feedings/", entry["id"], "Vitamin D")
+    """Append 'Vitamin D' to the latest feeding's notes if it's a bottle feed."""
+    return _note_on_latest_if_compatible(
+        client, child_id, "Vitamin D", {"bottle"}, "feeding_note_vitamin_d",
+    )
